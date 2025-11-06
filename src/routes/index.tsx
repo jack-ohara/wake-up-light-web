@@ -316,20 +316,10 @@ function App() {
             Brightness Control
           </h2>
 
-          {/* Color Temperature Presets */}
+          {/* Presets */}
           <div className="mb-6">
-            <p className="text-sm font-semibold text-gray-700 mb-2">Color Temperature</p>
+            <p className="text-sm font-semibold text-gray-700 mb-2">Presets</p>
             <div className="grid grid-cols-4 gap-2">
-              <Button
-                onClick={() =>
-                  setBrightnessMutation.mutate({ warm: 0, cool: 0 })
-                }
-                disabled={setBrightnessMutation.isPending}
-                variant="outline"
-                size="sm"
-              >
-                Off
-              </Button>
               <Button
                 onClick={() =>
                   setBrightnessMutation.mutate({ warm: 1023, cool: 0 })
@@ -351,24 +341,6 @@ function App() {
               >
                 Neutral
               </Button>
-              <Button
-                onClick={() =>
-                  setBrightnessMutation.mutate({ warm: 0, cool: 1023 })
-                }
-                disabled={setBrightnessMutation.isPending}
-                variant="outline"
-                size="sm"
-                className="hover:bg-blue-100"
-              >
-                Cool
-              </Button>
-            </div>
-          </div>
-
-          {/* Time of Day Presets */}
-          <div className="mb-6">
-            <p className="text-sm font-semibold text-gray-700 mb-2">Time of Day</p>
-            <div className="grid grid-cols-5 gap-2">
               <Button
                 onClick={() =>
                   setBrightnessMutation.mutate({ warm: 1023, cool: 410 })
