@@ -1,6 +1,8 @@
 # Build stage
 FROM node:20-alpine AS builder
 
+ARG VITE_ESP32_URL=http://localhost
+
 WORKDIR /app
 
 # Copy package files
@@ -12,8 +14,8 @@ RUN npm ci
 # Copy source code
 COPY . .
 
-# Build the app
-RUN npm run build
+# Build the app with environment variable
+RUN VITE_ESP32_URL=${VITE_ESP32_URL} npm run build
 
 # Runtime stage
 FROM nginx:alpine
