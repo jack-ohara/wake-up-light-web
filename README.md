@@ -1,310 +1,221 @@
-Welcome to your new TanStack app! 
+# Wake-Up Light Web App
 
-# Getting Started
+A modern web interface for controlling an ESP32-based wake-up light system. Control brightness, set alarms, and choose from preset lighting scenarios via an intuitive React application.
 
-To run this application:
+**Companion Project:** [ESP32 Backend](https://github.com/yourusername/wake-up-light) - Arduino-based controller for the LED lights
+
+## Features
+
+- 🌅 **Real-time Status Display** - Monitor current time, alarm status, and brightness levels
+- ⏰ **Alarm Management** - Set alarm times with 24-hour format and toggle on/off via switch
+- 💡 **Brightness Control** - 10-bit PWM resolution (0-1023) with dual warm/cool LED channels
+- 🎨 **Preset Lighting** - Quick access presets: Warm, Neutral, Morning, Day, Evening, Night, Bedtime
+- 📱 **Mobile Friendly** - Responsive design optimized for phones and tablets
+- ⚡ **Real-time Sync** - Auto-polling status updates every second
+- 🐳 **Docker Ready** - Pre-configured for containerized deployment
+
+## Tech Stack
+
+- **Frontend Framework:** React 19 with TypeScript
+- **Routing:** TanStack Router with file-based routing and loaders
+- **Data Fetching:** TanStack Query for caching and auto-refetching
+- **Form Validation:** Zod for runtime schema validation
+- **Styling:** Tailwind CSS v4 with custom components
+- **UI Components:** shadcn/ui
+- **Build Tool:** Vite
+- **Server:** Nginx (containerized)
+
+## Prerequisites
+
+- Node.js 20+
+- npm or yarn
+- Docker (for containerized deployment)
+- Access to ESP32 backend API
+
+## Getting Started
+
+### Local Development
 
 ```bash
+# Install dependencies
 npm install
-npm run start
+
+# Start development server
+npm run dev
 ```
 
-# Building For Production
+The app will be available at `http://localhost:5173`
 
-To build this application for production:
+### Configuration
+
+Before running the app, configure the ESP32 backend URL:
 
 ```bash
+# Create .env file
+cp .env.example .env  # if available
+
+# Edit .env
+VITE_ESP32_URL=http://192.168.1.100
+```
+
+Replace the IP address with your actual ESP32 address.
+
+## Building for Production
+
+```bash
+# Build the optimized production bundle
 npm run build
+
+# Preview the production build locally
+npm run preview
 ```
 
-## Testing
+The built files are in the `dist/` directory.
 
-This project uses [Vitest](https://vitest.dev/) for testing. You can run the tests with:
+## Docker Deployment
+
+### Build and Run Locally
 
 ```bash
-npm run test
+# Build Docker image
+docker build -t wake-up-light-web:latest .
+
+# Run container
+docker run -p 80:3000 wake-up-light-web:latest
 ```
 
-## Styling
+Access the app at `http://localhost:3000`
 
-This project uses [Tailwind CSS](https://tailwindcss.com/) for styling.
+### Environment Variables
 
+When running via Docker, pass environment variables via your runtime config or docker-compose:
 
-## Linting & Formatting
+```yaml
+version: '3.8'
+services:
+  app:
+    image: wake-up-light-web:latest
+    ports:
+      - "80:3000"
+    environment:
+      - VITE_ESP32_URL=http://esp32:80
+    networks:
+      - local
+```
 
-This project uses [Biome](https://biomejs.dev/) for linting and formatting. The following scripts are available:
+## CI/CD Pipeline
 
+This project includes GitHub Actions for automated Docker image building and pushing to Docker Hub.
+
+### Setup
+
+1. Create Docker Hub account if you don't have one
+2. Generate access token at https://hub.docker.com/settings/security
+3. Add GitHub Secrets to your repository:
+   - `DOCKERHUB_USERNAME` - Your Docker Hub username
+   - `DOCKERHUB_TOKEN` - Your Docker Hub access token (NOT password)
+
+### Auto-Deployment
+
+On every push to `main`, the workflow will:
+- Build the Docker image
+- Push to Docker Hub as `username/wake-up-light-web`
+- Tag with `latest`, branch name, and git SHA
+
+Pull and run latest version:
 
 ```bash
-npm run lint
+docker pull your-username/wake-up-light-web:latest
+docker run -p 80:3000 your-username/wake-up-light-web:latest
+```
+
+## Project Structure
+
+```
+src/
+├── lib/
+│   ├── api.ts           # ESP32 API client with Zod schemas
+│   └── utils.ts         # Utility functions
+├── components/
+│   ├── ui/              # shadcn/ui components
+│   ├── Header.tsx       # App header
+│   └── ...              # Feature components
+├── routes/
+│   ├── __root.tsx       # Root layout
+│   └── index.tsx        # Home/controller page
+├── main.tsx             # React entry point
+└── styles.css           # Global styles
+```
+
+## API Integration
+
+The app communicates with the ESP32 backend via REST API:
+
+- `GET /status` - Current system status
+- `POST /set-alarm` - Set alarm time
+- `POST /toggle-alarm` - Enable/disable alarm
+- `POST /set-brightness` - Set warm/cool brightness (0-1023)
+- `POST /manual-on` - Fade lights to full brightness
+- `POST /manual-off` - Fade lights to off
+
+All requests and responses are validated with Zod schemas.
+
+## Development
+
+```bash
+# Run dev server with hot reload
+npm run dev
+
+# Build for production
+npm run build
+
+# Preview production build
+npm run preview
+
+# Type checking
+npm run tsc
+
+# Format code
 npm run format
-npm run check
+
+# Lint code
+npm run lint
 ```
 
+## Browser Support
 
-## Shadcn
+- Chrome/Chromium 90+
+- Firefox 88+
+- Safari 14+
+- Edge 90+
 
-Add components using the latest version of [Shadcn](https://ui.shadcn.com/).
+## Troubleshooting
 
-```bash
-pnpx shadcn@latest add button
-```
+**App won't connect to ESP32:**
+- Verify ESP32 IP address in `.env`
+- Check that ESP32 is on the same network
+- Ensure ESP32 backend is running
 
+**Sliders not updating:**
+- Check browser console for errors
+- Verify brightness values are 0-1023
+- Try hard refresh (Ctrl+Shift+R)
 
+**Preset buttons disabled:**
+- Likely a network error
+- Check ESP32 connectivity
+- Review browser network tab for failed requests
 
-## Routing
-This project uses [TanStack Router](https://tanstack.com/router). The initial setup is a file based router. Which means that the routes are managed as files in `src/routes`.
+## Contributing
 
-### Adding A Route
+This is a personal project, but feel free to fork and customize for your own setup!
 
-To add a new route to your application just add another a new file in the `./src/routes` directory.
+## License
 
-TanStack will automatically generate the content of the route file for you.
+MIT
 
-Now that you have two routes you can use a `Link` component to navigate between them.
+## Support
 
-### Adding Links
+For issues with the web app, check the [GitHub Issues](https://github.com/yourusername/wake-up-light-web/issues).
 
-To use SPA (Single Page Application) navigation you will need to import the `Link` component from `@tanstack/react-router`.
-
-```tsx
-import { Link } from "@tanstack/react-router";
-```
-
-Then anywhere in your JSX you can use it like so:
-
-```tsx
-<Link to="/about">About</Link>
-```
-
-This will create a link that will navigate to the `/about` route.
-
-More information on the `Link` component can be found in the [Link documentation](https://tanstack.com/router/v1/docs/framework/react/api/router/linkComponent).
-
-### Using A Layout
-
-In the File Based Routing setup the layout is located in `src/routes/__root.tsx`. Anything you add to the root route will appear in all the routes. The route content will appear in the JSX where you use the `<Outlet />` component.
-
-Here is an example layout that includes a header:
-
-```tsx
-import { Outlet, createRootRoute } from '@tanstack/react-router'
-import { TanStackRouterDevtools } from '@tanstack/react-router-devtools'
-
-import { Link } from "@tanstack/react-router";
-
-export const Route = createRootRoute({
-  component: () => (
-    <>
-      <header>
-        <nav>
-          <Link to="/">Home</Link>
-          <Link to="/about">About</Link>
-        </nav>
-      </header>
-      <Outlet />
-      <TanStackRouterDevtools />
-    </>
-  ),
-})
-```
-
-The `<TanStackRouterDevtools />` component is not required so you can remove it if you don't want it in your layout.
-
-More information on layouts can be found in the [Layouts documentation](https://tanstack.com/router/latest/docs/framework/react/guide/routing-concepts#layouts).
-
-
-## Data Fetching
-
-There are multiple ways to fetch data in your application. You can use TanStack Query to fetch data from a server. But you can also use the `loader` functionality built into TanStack Router to load the data for a route before it's rendered.
-
-For example:
-
-```tsx
-const peopleRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/people",
-  loader: async () => {
-    const response = await fetch("https://swapi.dev/api/people");
-    return response.json() as Promise<{
-      results: {
-        name: string;
-      }[];
-    }>;
-  },
-  component: () => {
-    const data = peopleRoute.useLoaderData();
-    return (
-      <ul>
-        {data.results.map((person) => (
-          <li key={person.name}>{person.name}</li>
-        ))}
-      </ul>
-    );
-  },
-});
-```
-
-Loaders simplify your data fetching logic dramatically. Check out more information in the [Loader documentation](https://tanstack.com/router/latest/docs/framework/react/guide/data-loading#loader-parameters).
-
-### React-Query
-
-React-Query is an excellent addition or alternative to route loading and integrating it into you application is a breeze.
-
-First add your dependencies:
-
-```bash
-npm install @tanstack/react-query @tanstack/react-query-devtools
-```
-
-Next we'll need to create a query client and provider. We recommend putting those in `main.tsx`.
-
-```tsx
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-
-// ...
-
-const queryClient = new QueryClient();
-
-// ...
-
-if (!rootElement.innerHTML) {
-  const root = ReactDOM.createRoot(rootElement);
-
-  root.render(
-    <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} />
-    </QueryClientProvider>
-  );
-}
-```
-
-You can also add TanStack Query Devtools to the root route (optional).
-
-```tsx
-import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
-
-const rootRoute = createRootRoute({
-  component: () => (
-    <>
-      <Outlet />
-      <ReactQueryDevtools buttonPosition="top-right" />
-      <TanStackRouterDevtools />
-    </>
-  ),
-});
-```
-
-Now you can use `useQuery` to fetch your data.
-
-```tsx
-import { useQuery } from "@tanstack/react-query";
-
-import "./App.css";
-
-function App() {
-  const { data } = useQuery({
-    queryKey: ["people"],
-    queryFn: () =>
-      fetch("https://swapi.dev/api/people")
-        .then((res) => res.json())
-        .then((data) => data.results as { name: string }[]),
-    initialData: [],
-  });
-
-  return (
-    <div>
-      <ul>
-        {data.map((person) => (
-          <li key={person.name}>{person.name}</li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-
-export default App;
-```
-
-You can find out everything you need to know on how to use React-Query in the [React-Query documentation](https://tanstack.com/query/latest/docs/framework/react/overview).
-
-## State Management
-
-Another common requirement for React applications is state management. There are many options for state management in React. TanStack Store provides a great starting point for your project.
-
-First you need to add TanStack Store as a dependency:
-
-```bash
-npm install @tanstack/store
-```
-
-Now let's create a simple counter in the `src/App.tsx` file as a demonstration.
-
-```tsx
-import { useStore } from "@tanstack/react-store";
-import { Store } from "@tanstack/store";
-import "./App.css";
-
-const countStore = new Store(0);
-
-function App() {
-  const count = useStore(countStore);
-  return (
-    <div>
-      <button onClick={() => countStore.setState((n) => n + 1)}>
-        Increment - {count}
-      </button>
-    </div>
-  );
-}
-
-export default App;
-```
-
-One of the many nice features of TanStack Store is the ability to derive state from other state. That derived state will update when the base state updates.
-
-Let's check this out by doubling the count using derived state.
-
-```tsx
-import { useStore } from "@tanstack/react-store";
-import { Store, Derived } from "@tanstack/store";
-import "./App.css";
-
-const countStore = new Store(0);
-
-const doubledStore = new Derived({
-  fn: () => countStore.state * 2,
-  deps: [countStore],
-});
-doubledStore.mount();
-
-function App() {
-  const count = useStore(countStore);
-  const doubledCount = useStore(doubledStore);
-
-  return (
-    <div>
-      <button onClick={() => countStore.setState((n) => n + 1)}>
-        Increment - {count}
-      </button>
-      <div>Doubled - {doubledCount}</div>
-    </div>
-  );
-}
-
-export default App;
-```
-
-We use the `Derived` class to create a new store that is derived from another store. The `Derived` class has a `mount` method that will start the derived store updating.
-
-Once we've created the derived store we can use it in the `App` component just like we would any other store using the `useStore` hook.
-
-You can find out everything you need to know on how to use TanStack Store in the [TanStack Store documentation](https://tanstack.com/store/latest).
-
-# Demo files
-
-Files prefixed with `demo` can be safely deleted. They are there to provide a starting point for you to play around with the features you've installed.
-
-# Learn More
-
-You can learn more about all of the offerings from TanStack in the [TanStack documentation](https://tanstack.com).
+For ESP32 backend issues, see the [companion repository](https://github.com/yourusername/wake-up-light).
