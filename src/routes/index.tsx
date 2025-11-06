@@ -1,36 +1,53 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   getStatus,
   setAlarm,
+  setBrightness,
+  toggleAlarm,
   turnLightsOn,
   turnLightsOff,
   type Status,
   type AlarmRequest,
+  type BrightnessRequest,
 } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Badge } from '@/components/ui/badge'
-import { Power } from 'lucide-react'
+import { Slider } from '@/components/ui/slider'
+import { Switch } from '@/components/ui/switch'
+import { Lightbulb } from 'lucide-react'
+
+async function loadStatus() {
+  return getStatus()
+}
 
 export const Route = createFileRoute('/')({
   component: App,
+  loader: loadStatus,
 })
 
 function App() {
+  const initialStatus = Route.useLoaderData();
   const queryClient = useQueryClient()
-  const [hour, setHour] = useState('06')
-  const [minute, setMinute] = useState('30')
+
+  // Parse initial alarm time for default values
+  const [alarmHourStr, alarmMinuteStr] = initialStatus.alarmTime.split(':')
+
+  const [hour, setHour] = useState(alarmHourStr.padStart(2, '0'))
+  const [minute, setMinute] = useState(alarmMinuteStr)
   const [showSaveSuccess, setShowSaveSuccess] = useState(false)
+  const [warmBrightness, setWarmBrightness] = useState(initialStatus.warmBrightness)
+  const [coolBrightness, setCoolBrightness] = useState(initialStatus.coolBrightness)
 
   const { data: status, isLoading, error } = useQuery<Status>({
     queryKey: ['status'],
     queryFn: getStatus,
     refetchInterval: 1000,
     retry: 3,
+    initialData: initialStatus,
   })
 
   const setAlarmMutation = useMutation({
@@ -64,6 +81,34 @@ function App() {
       console.error('Failed to turn off lights:', error)
     },
   })
+
+  const setBrightnessMutation = useMutation({
+    mutationFn: (brightness: BrightnessRequest) => setBrightness(brightness),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['status'] })
+    },
+    onError: (error) => {
+      console.error('Failed to set brightness:', error)
+    },
+  })
+
+  const toggleAlarmMutation = useMutation({
+    mutationFn: (enabled: boolean) => toggleAlarm(enabled),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['status'] })
+    },
+    onError: (error) => {
+      console.error('Failed to toggle alarm:', error)
+    },
+  })
+
+  // Sync brightness sliders with status when it updates
+  useEffect(() => {
+    if (status) {
+      setWarmBrightness(status.warmBrightness)
+      setCoolBrightness(status.coolBrightness)
+    }
+  }, [status?.warmBrightness, status?.coolBrightness])
 
   const handleSetAlarm = () => {
     const alarmHour = parseInt(hour, 10)
@@ -139,12 +184,7 @@ function App() {
             {/* Alarm Time */}
             <div className="p-4 bg-purple-50 rounded-lg border border-purple-200">
               <p className="text-sm text-gray-600 mb-1">Alarm Time</p>
-              <div className="flex flex-col items-center justify-between">
-                <p className="text-2xl font-bold text-purple-600 font-mono">{status.alarmTime}</p>
-                <Badge variant={status.isAlarmSet ? 'default' : 'secondary'}>
-                  {status.isAlarmSet ? 'Enabled' : 'Disabled'}
-                </Badge>
-              </div>
+              <p className="text-2xl font-bold text-purple-600 font-mono">{status.alarmTime}</p>
             </div>
           </div>
 
@@ -157,7 +197,7 @@ function App() {
                   <div
                     className="h-full bg-yellow-400 transition-all duration-300"
                     style={{
-                      width: `${(status.warmBrightness / 255) * 100}%`,
+                      width: `${(status.warmBrightness / 1023) * 100}%`,
                     }}
                   />
                 </div>
@@ -172,7 +212,7 @@ function App() {
                   <div
                     className="h-full bg-blue-300 transition-all duration-300"
                     style={{
-                      width: `${(status.coolBrightness / 255) * 100}%`,
+                      width: `${(status.coolBrightness / 1023) * 100}%`,
                     }}
                   />
                 </div>
@@ -187,6 +227,23 @@ function App() {
               <p className="text-sm text-orange-800 font-medium">🌅 Sunrise is currently active</p>
             </div>
           )}
+
+          {/* Alarm Toggle */}
+          <div className="mt-4 flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
+            <div>
+              <Label className="text-base font-semibold">Alarm</Label>
+              <p className="text-sm text-gray-600">
+                {status.isAlarmSet ? 'Enabled' : 'Disabled'}
+              </p>
+            </div>
+            <Switch
+              checked={status.isAlarmSet}
+              onCheckedChange={(checked) => {
+                toggleAlarmMutation.mutate(checked)
+              }}
+              disabled={toggleAlarmMutation.isPending}
+            />
+          </div>
         </Card>
 
         {/* Alarm Configuration */}
@@ -252,46 +309,203 @@ function App() {
           </div>
         </Card>
 
-        {/* Manual Controls */}
+        {/* Brightness Control */}
         <Card className="p-6">
-          <h2 className="text-2xl font-bold mb-6">Manual Controls</h2>
+          <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
+            <Lightbulb size={28} />
+            Brightness Control
+          </h2>
 
-          <div className="grid grid-cols-2 gap-4">
+          {/* Color Temperature Presets */}
+          <div className="mb-6">
+            <p className="text-sm font-semibold text-gray-700 mb-2">Color Temperature</p>
+            <div className="grid grid-cols-4 gap-2">
+              <Button
+                onClick={() =>
+                  setBrightnessMutation.mutate({ warm: 0, cool: 0 })
+                }
+                disabled={setBrightnessMutation.isPending}
+                variant="outline"
+                size="sm"
+              >
+                Off
+              </Button>
+              <Button
+                onClick={() =>
+                  setBrightnessMutation.mutate({ warm: 1023, cool: 0 })
+                }
+                disabled={setBrightnessMutation.isPending}
+                variant="outline"
+                size="sm"
+                className="hover:bg-yellow-100"
+              >
+                Warm
+              </Button>
+              <Button
+                onClick={() =>
+                  setBrightnessMutation.mutate({ warm: 820, cool: 820 })
+                }
+                disabled={setBrightnessMutation.isPending}
+                variant="outline"
+                size="sm"
+              >
+                Neutral
+              </Button>
+              <Button
+                onClick={() =>
+                  setBrightnessMutation.mutate({ warm: 0, cool: 1023 })
+                }
+                disabled={setBrightnessMutation.isPending}
+                variant="outline"
+                size="sm"
+                className="hover:bg-blue-100"
+              >
+                Cool
+              </Button>
+            </div>
+          </div>
+
+          {/* Time of Day Presets */}
+          <div className="mb-6">
+            <p className="text-sm font-semibold text-gray-700 mb-2">Time of Day</p>
+            <div className="grid grid-cols-5 gap-2">
+              <Button
+                onClick={() =>
+                  setBrightnessMutation.mutate({ warm: 1023, cool: 410 })
+                }
+                disabled={setBrightnessMutation.isPending}
+                variant="outline"
+                size="sm"
+              >
+                Morning
+              </Button>
+              <Button
+                onClick={() =>
+                  setBrightnessMutation.mutate({ warm: 615, cool: 1023 })
+                }
+                disabled={setBrightnessMutation.isPending}
+                variant="outline"
+                size="sm"
+              >
+                Day
+              </Button>
+              <Button
+                onClick={() =>
+                  setBrightnessMutation.mutate({ warm: 820, cool: 205 })
+                }
+                disabled={setBrightnessMutation.isPending}
+                variant="outline"
+                size="sm"
+              >
+                Evening
+              </Button>
+              <Button
+                onClick={() =>
+                  setBrightnessMutation.mutate({ warm: 205, cool: 0 })
+                }
+                disabled={setBrightnessMutation.isPending}
+                variant="outline"
+                size="sm"
+              >
+                Night
+              </Button>
+              <Button
+                onClick={() =>
+                  setBrightnessMutation.mutate({ warm: 500, cool: 0 })
+                }
+                disabled={setBrightnessMutation.isPending}
+                variant="outline"
+                size="sm"
+              >
+                Bedtime
+              </Button>
+            </div>
+          </div>
+
+          {/* Manual Sliders */}
+          <div className="space-y-4 pt-4 border-t border-gray-200">
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <Label className="text-sm font-semibold">Warm White</Label>
+                <span className="text-sm font-mono bg-yellow-100 px-2 py-1 rounded">
+                  {warmBrightness}
+                </span>
+              </div>
+              <Slider
+                value={[warmBrightness]}
+                onValueChange={(value) => {
+                  setWarmBrightness(value[0])
+                }}
+                onValueCommit={(value) => {
+                  setBrightnessMutation.mutate({
+                    warm: value[0],
+                    cool: coolBrightness,
+                  })
+                }}
+                min={0}
+                max={1023}
+                step={1}
+                className="w-full"
+              />
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <Label className="text-sm font-semibold">Cool White</Label>
+                <span className="text-sm font-mono bg-blue-100 px-2 py-1 rounded">
+                  {coolBrightness}
+                </span>
+              </div>
+              <Slider
+                value={[coolBrightness]}
+                onValueChange={(value) => {
+                  setCoolBrightness(value[0])
+                }}
+                onValueCommit={(value) => {
+                  setBrightnessMutation.mutate({
+                    warm: warmBrightness,
+                    cool: value[0],
+                  })
+                }}
+                min={0}
+                max={1023}
+                step={1}
+                className="w-full"
+              />
+            </div>
+          </div>
+
+          {/* Quick On/Off Buttons */}
+          <div className="grid grid-cols-2 gap-2 mt-4 pt-4 border-t border-gray-200">
             <Button
               onClick={() => turnOnMutation.mutate()}
               disabled={turnOnMutation.isPending}
-              size="lg"
-              className="bg-green-600 hover:bg-green-700 text-white h-20"
+              className="bg-green-600 hover:bg-green-700 text-white"
             >
-              <div className="flex flex-col items-center gap-2">
-                <Power size={32} />
-                <span>{turnOnMutation.isPending ? 'Turning On...' : 'Lights On'}</span>
-              </div>
+              {turnOnMutation.isPending ? 'Turning On...' : 'Max Brightness'}
             </Button>
-
             <Button
               onClick={() => turnOffMutation.mutate()}
               disabled={turnOffMutation.isPending}
-              size="lg"
               variant="destructive"
-              className="text-white h-20"
             >
-              <div className="flex flex-col items-center gap-2">
-                <Power size={32} />
-                <span>{turnOffMutation.isPending ? 'Turning Off...' : 'Lights Off'}</span>
-              </div>
+              {turnOffMutation.isPending ? 'Turning Off...' : 'Off'}
             </Button>
           </div>
 
-          {(turnOnMutation.error || turnOffMutation.error) && (
+          {(setBrightnessMutation.error ||
+            turnOnMutation.error ||
+            turnOffMutation.error) && (
             <div className="mt-4 p-3 bg-red-100 border border-red-300 rounded-lg">
               <p className="text-sm text-red-800 font-medium">
                 Error:{' '}
-                {turnOnMutation.error instanceof Error
-                  ? turnOnMutation.error.message
-                  : turnOffMutation.error instanceof Error
-                    ? turnOffMutation.error.message
-                    : 'Failed to control lights'}
+                {setBrightnessMutation.error instanceof Error
+                  ? setBrightnessMutation.error.message
+                  : turnOnMutation.error instanceof Error
+                    ? turnOnMutation.error.message
+                    : turnOffMutation.error instanceof Error
+                      ? turnOffMutation.error.message
+                      : 'Failed to control brightness'}
               </p>
             </div>
           )}

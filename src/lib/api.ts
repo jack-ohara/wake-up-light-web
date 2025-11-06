@@ -9,8 +9,8 @@ export const StatusResponseSchema = z.object({
   alarmTime: z.string(),
   isAlarmSet: z.boolean(),
   isSunriseActive: z.boolean(),
-  warmBrightness: z.number().min(0).max(255),
-  coolBrightness: z.number().min(0).max(255),
+  warmBrightness: z.number().min(0).max(1023),
+  coolBrightness: z.number().min(0).max(1023),
 });
 
 export const AlarmRequestSchema = z.object({
@@ -24,11 +24,34 @@ export const GetAlarmResponseSchema = z.object({
   isSet: z.boolean(),
 });
 
+export const BrightnessRequestSchema = z.object({
+  warm: z.number().min(0).max(1023),
+  cool: z.number().min(0).max(1023),
+});
+
+export const BrightnessResponseSchema = z.object({
+  warm: z.number().min(0).max(1023),
+  cool: z.number().min(0).max(1023),
+});
+
+export const ToggleAlarmRequestSchema = z.object({
+  enabled: z.boolean(),
+});
+
+export const ToggleAlarmResponseSchema = z.object({
+  isAlarmSet: z.boolean(),
+  alarmTime: z.string(),
+});
+
 // ============ Type Inference ============
 
 export type Status = z.infer<typeof StatusResponseSchema>;
 export type AlarmRequest = z.infer<typeof AlarmRequestSchema>;
 export type GetAlarmResponse = z.infer<typeof GetAlarmResponseSchema>;
+export type BrightnessRequest = z.infer<typeof BrightnessRequestSchema>;
+export type BrightnessResponse = z.infer<typeof BrightnessResponseSchema>;
+export type ToggleAlarmRequest = z.infer<typeof ToggleAlarmRequestSchema>;
+export type ToggleAlarmResponse = z.infer<typeof ToggleAlarmResponseSchema>;
 
 // ============ API Functions ============
 
@@ -98,4 +121,44 @@ export async function turnLightsOff(): Promise<void> {
   if (!response.ok) {
     throw new Error(`Failed to turn lights off: ${response.status} ${response.statusText}`);
   }
+}
+
+export async function setBrightness(brightness: BrightnessRequest): Promise<BrightnessResponse> {
+  const url = `${ESP32_URL}/set-brightness`;
+  const validated = BrightnessRequestSchema.parse(brightness);
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(validated),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to set brightness: ${response.status} ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  return BrightnessResponseSchema.parse(data);
+}
+
+export async function toggleAlarm(enabled: boolean): Promise<ToggleAlarmResponse> {
+  const url = `${ESP32_URL}/toggle-alarm`;
+  const validated = ToggleAlarmRequestSchema.parse({ enabled });
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(validated),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to toggle alarm: ${response.status} ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  return ToggleAlarmResponseSchema.parse(data);
 }
